@@ -5,7 +5,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from scraper import scrape_marks
 
 # URL to take data from
-url = "https://rawmarks.info/english/english-extension-2/"
+url = "https://rawmarks.info/mathematics/mathematics-extension-2/"
 csv_file, title = scrape_marks(url)
 
 # Read File
@@ -21,10 +21,20 @@ raws = np.array([float(x[1]) for x in rows])
 aligned = np.array([float(x[2]) for x in rows])
 
 # Polynomial regression
-coeffs = np.polyfit(raws, aligned, 3)
-poly = np.poly1d(coeffs)
+x_shifted = raws - 100
+y_shifted = aligned - 100
+
+#Cubic with no constant term
+A = np.vstack([x_shifted**3, x_shifted**2, x_shifted]).T
+coeffs, *_ = np.linalg.lstsq(A, y_shifted, rcond=None)
+a, b, c = coeffs
+
+def aligned_poly(x):
+    x_shift = x - 100
+    return a*x_shift**3 + b*x_shift**2 + c*x_shift + 100
+
 x_line = np.linspace(20, 100, 200)
-y_line = poly(x_line)
+y_line = aligned_poly(x_line)
 
 # Aligned Bands
 plt.axhspan(90, 100, facecolor="lightblue", alpha=0.3)  
