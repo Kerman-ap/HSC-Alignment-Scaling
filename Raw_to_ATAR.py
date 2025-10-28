@@ -4,8 +4,8 @@ import json
 import matplotlib.pyplot as plt
 from scraper import scrape_marks  
 
-url = "https://rawmarks.info/mathematics/mathematics-extension-2/"
-course_name = "Mathematics Extension 2"
+url = "https://rawmarks.info/hsie/economics/"
+course_name = "Economics"
 csv_file, title = scrape_marks(url)
 
 raw_marks = []
@@ -15,16 +15,35 @@ with open(csv_file, 'r') as f:
     reader = csv.reader(f)
     next(reader)
     for row in reader:
-        raw_marks.append(float(row[1])*2)      # raw mark
-        hsc_marks.append(float(row[2])*2)      # HSC mark
+        raw_marks.append(float(row[1]))      # raw mark
+        hsc_marks.append(float(row[2]))      # HSC mark
 
 raw_marks = np.array(raw_marks)
 hsc_marks = np.array(hsc_marks)
 
+x_shift = raw_marks - 100
+y_shift = hsc_marks - 100
 
-f_raw_to_hsc = np.poly1d(np.polyfit(raw_marks, hsc_marks, 3))
+A = np.vstack([x_shift**3, x_shift**2, x_shift]).T
+coeffs, *_ = np.linalg.lstsq(A, y_shift, rcond=None)
+a, b, c = coeffs
 
+def anchored_poly(x):
+    xs = x - 100
+    return a*xs**3 + b*xs**2 + c*xs + 100
 
+f_raw_to_hsc = np.poly1d([
+    a, 
+    -300*a + b, 
+    30000*a - 200*b + c, 
+    -1_000_000*a + 10_000*b - 100*c + 100
+])
+print([
+    a, 
+    -300*a + b, 
+    30000*a - 200*b + c, 
+    -1_000_000*a + 10_000*b - 100*c + 100
+])
 # Load HSC to SCA / Aggregate data from JSON
 
 with open('courses.json', 'r') as file:
@@ -46,7 +65,9 @@ g_hsc_to_sca = np.poly1d(np.polyfit(hsc_points, sca_points, 3))
 h_raw_to_agg = g_hsc_to_sca(f_raw_to_hsc)
 
 # Define Aggregate to ATAR polynomial
-f_agg_to_atar = np.poly1d([8.826e-12, -1.666e-08, 1.097e-05, -0.003403, 0.7176, -14.3])
+f_agg_to_atar = np.poly1d([1.66950188e-22, -5.48669938e-19,  8.02957890e-16, -6.88690028e-13,
+  3.83199429e-10, -1.44494178e-07,  3.73867545e-05, -6.55359401e-03,
+  7.44697672e-01, -4.93033035e+01,  1.47653860e+03])
 
 final_poly = f_agg_to_atar(h_raw_to_agg)
 
@@ -77,6 +98,6 @@ plt.xlabel("Raw Mark")
 plt.ylabel("ATAR Contribution")
 plt.title(f"Raw Mark → ATAR Contribution ({course_name})")
 plt.grid(True, linestyle="--", alpha=0.5)
-plt.xlim(30, 100)
-plt.ylim(60, 100)
+plt.xlim(50, 100)
+plt.ylim(70, 100)
 plt.show()
